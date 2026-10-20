@@ -1,1 +1,140 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Store Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #ffffff);
+      --text-color: var(--tg-theme-text-color, #000000);
+      --button-color: var(--tg-theme-button-color, #2481cc);
+      --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+      --secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      margin-top: 0;
+      text-align: center;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--secondary-bg);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .card img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+
+    .card .title {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 8px 0 4px;
+    }
+
+    .card .price {
+      font-size: 14px;
+      font-weight: bold;
+      color: var(--button-color);
+      margin-bottom: 8px;
+    }
+
+    .btn {
+      background-color: var(--button-color);
+      color: var(--button-text-color);
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    .btn:active {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Featured Products</h2>
+  <div class="grid" id="product-list"></div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    const products = [
+      {
+        id: 1,
+        name: "Liquid Laundry Detergent 5L",
+        price: "15.00",
+        image: "https://via.placeholder.com/150/2481cc/ffffff?text=Detergent+5L"
+      },
+      {
+        id: 2,
+        name: "Alpine Fragrance Soap",
+        price: "4.50",
+        image: "https://via.placeholder.com/150/4caf50/ffffff?text=Alpine+Soap"
+      },
+      {
+        id: 3,
+        name: "Multi-Surface Cleaner 1L",
+        price: "8.00",
+        image: "https://via.placeholder.com/150/ff9800/ffffff?text=Cleaner+1L"
+      }
+    ];
+
+    const container = document.getElementById("product-list");
+
+    products.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <img src="${p.image}" alt="${p.name}">
+        <div class="title">${p.name}</div>
+        <div class="price">$${p.price}</div>
+        <button class="btn" onclick="addToCart('${p.name}', '${p.price}')">Select</button>
+      `;
+      container.appendChild(card);
+    });
+
+    function addToCart(name, price) {
+      tg.MainButton.text = `Order ${name} ($${price})`;
+      tg.MainButton.show();
+
+      tg.MainButton.onClick(() => {
+        tg.sendData(JSON.stringify({ name, price }));
+        tg.close();
+      });
+    }
+  </script>
+</body>
+</html>
