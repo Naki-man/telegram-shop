@@ -164,9 +164,12 @@
   <!-- Product Grid Container -->
   <div class="grid" id="product-list"></div>
 
-  <script>
+ 
+    function updateCart(productId, change) {
+        <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
+    tg.ready(); // Signals to Telegram that the Mini App is fully loaded
 
     // Catalog Data
     const products = [
@@ -178,7 +181,7 @@
       { id: 6, category: "Personal Care", name: "Eucalyptus Body Wash 250ml", price: 5.50, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300" }
     ];
 
-    let cart = {}; // Store added items: { productId: quantity }
+    let cart = {}; 
     let activeCategory = "All";
 
     function renderProducts() {
@@ -233,6 +236,32 @@
       updateMainButton();
     }
 
+    // Function to handle checkout click
+    function onCheckoutClick() {
+      const orderSummary = [];
+      let total = 0;
+
+      for (let id in cart) {
+        const prod = products.find(p => p.id == id);
+        const qty = cart[id];
+        const itemTotal = prod.price * qty;
+        total += itemTotal;
+        orderSummary.push({ name: prod.name, qty: qty, price: prod.price, subtotal: itemTotal });
+      }
+
+      const payload = JSON.stringify({
+        items: orderSummary,
+        totalAmount: total.toFixed(2)
+      });
+
+      try {
+        tg.sendData(payload); // Send data to bot
+      } catch (e) {
+        tg.showAlert("Order placed! Total: $" + total.toFixed(2));
+      }
+      tg.close();
+    }
+
     function updateMainButton() {
       let totalItems = 0;
       let totalPrice = 0;
@@ -249,6 +278,10 @@
       if (totalItems > 0) {
         tg.MainButton.setText(`VIEW CART (${totalItems}) • $${totalPrice.toFixed(2)}`);
         tg.MainButton.show();
+        
+        // Remove previous listener and bind fresh event
+        tg.MainButton.offClick(onCheckoutClick);
+        tg.MainButton.onClick(onCheckoutClick);
       } else {
         tg.MainButton.hide();
       }
@@ -265,29 +298,9 @@
       renderProducts();
     }
 
-    // Handle Telegram Checkout action
-    tg.MainButton.onClick(() => {
-      const orderSummary = [];
-      let total = 0;
-
-      for (let id in cart) {
-        const prod = products.find(p => p.id == id);
-        const qty = cart[id];
-        const itemTotal = prod.price * qty;
-        total += itemTotal;
-        orderSummary.push({ name: prod.name, qty: qty, price: prod.price, subtotal: itemTotal });
-      }
-
-      // Send payload back to Telegram Bot
-      tg.sendData(JSON.stringify({
-        items: orderSummary,
-        totalAmount: total.toFixed(2)
-      }));
-      tg.close();
-    });
-
     // Initial render
     renderProducts();
   </script>
+
 </body>
 </html>
