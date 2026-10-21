@@ -188,9 +188,30 @@
     .modal-item {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 10px;
+      align-items: center;
+      margin-bottom: 12px;
       padding-bottom: 8px;
       border-bottom: 1px solid var(--secondary-bg);
+    }
+
+    .modal-item-info {
+      flex: 1;
+    }
+
+    .modal-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .delete-btn {
+      background: #ff3b30;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
     }
 
     .confirm-btn {
@@ -220,12 +241,12 @@
 
   <div class="grid" id="product-list"></div>
 
-  <!-- In-App View Cart Floating Button -->
+  <!-- Floating View Cart Button -->
   <div id="floating-cart" class="floating-cart" onclick="openCartModal()">
     VIEW CART (<span id="cart-count">0</span>) • $<span id="cart-total">0.00</span>
   </div>
 
-  <!-- Cart Summary Modal -->
+  <!-- Editable Cart Modal Overlay -->
   <div id="modal-overlay" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">
@@ -238,7 +259,7 @@
         <span>Total:</span>
         <span>$<span id="modal-total">0.00</span></span>
       </div>
-      <button class="confirm-btn" onclick="submitOrder()">Submit Order</button>
+      <button class="confirm-btn" id="submit-btn" onclick="submitOrder()">Submit Order</button>
     </div>
   </div>
 
@@ -309,6 +330,18 @@
 
       renderProducts();
       updateCartBar();
+      
+      // If modal is currently open, dynamically update it too
+      if (document.getElementById("modal-overlay").style.display === "flex") {
+        openCartModal();
+      }
+    }
+
+    function deleteFromCart(productId) {
+      delete cart[productId];
+      renderProducts();
+      updateCartBar();
+      openCartModal();
     }
 
     function updateCartBar() {
@@ -331,6 +364,7 @@
         floatBar.style.display = "block";
       } else {
         floatBar.style.display = "none";
+        closeCartModal();
       }
     }
 
@@ -338,8 +372,10 @@
       const listContainer = document.getElementById("cart-items-list");
       listContainer.innerHTML = "";
       let total = 0;
+      let hasItems = false;
 
       for (let id in cart) {
+        hasItems = true;
         const prod = products.find(p => p.id == id);
         const qty = cart[id];
         const subtotal = prod.price * qty;
@@ -348,10 +384,23 @@
         const itemRow = document.createElement("div");
         itemRow.className = "modal-item";
         itemRow.innerHTML = `
-          <div><strong>${prod.name}</strong> x${qty}</div>
-          <div>$${subtotal.toFixed(2)}</div>
+          <div class="modal-item-info">
+            <div><strong>${prod.name}</strong></div>
+            <div style="font-size:12px; color:#666;">$${prod.price.toFixed(2)} x ${qty} = $${subtotal.toFixed(2)}</div>
+          </div>
+          <div class="modal-controls">
+            <button class="qty-btn" onclick="updateCart(${prod.id}, -1)">-</button>
+            <span class="qty-num">${qty}</span>
+            <button class="qty-btn" onclick="updateCart(${prod.id}, 1)">+</button>
+            <button class="delete-btn" onclick="deleteFromCart(${prod.id})">🗑️</button>
+          </div>
         `;
         listContainer.appendChild(itemRow);
+      }
+
+      if (!hasItems) {
+        closeCartModal();
+        return;
       }
 
       document.getElementById("modal-total").innerText = total.toFixed(2);
@@ -374,18 +423,27 @@
         orderSummary.push({ name: prod.name, qty: qty, price: prod.price, subtotal: subtotal });
       }
 
+      if (orderSummary.length === 0) return;
+
       const payload = JSON.stringify({ items: orderSummary, totalAmount: total.toFixed(2) });
 
-      if (tg.sendData) {
+      // Visual feedback on button tap
+      const btn = document.getElementById("submit-btn");
+      btn.innerText = "Submitting...";
+      btn.disabled = true;
+
+      setTimeout(() => {
         try {
-          tg.sendData(payload);
-        } catch(e) {
-          alert("Order Placed Successfully! Total: $" + total.toFixed(2));
+          tg.sendData(payload); // Send JSON order data to Telegram Bot
+        } catch (e) {
+          console.log("sendData error:", e);
         }
-      } else {
-        alert("Order Placed Successfully! Total: $" + total.toFixed(2));
-      }
-      tg.close();
+
+        // Native Alert Confirmation
+        tg.showAlert("✅ Order Submitted Successfully!\nTotal: $" + total.toFixed(2), () => {
+          tg.close();
+        });
+      }, 300);
     }
 
     function setCategory(cat, element) {
