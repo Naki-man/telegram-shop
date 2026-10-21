@@ -1,140 +1,293 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Telegram Store Mini App</title>
+  <title>Noble Store</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
       --bg-color: var(--tg-theme-bg-color, #ffffff);
-      --text-color: var(--tg-theme-text-color, #000000);
-      --button-color: var(--tg-theme-button-color, #2481cc);
+      --text-color: var(--tg-theme-text-color, #111111);
+      --button-color: var(--tg-theme-button-color, #0088cc);
       --button-text-color: var(--tg-theme-button-text-color, #ffffff);
       --secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+      --hint-color: var(--tg-theme-hint-color, #888888);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
       margin: 0;
-      padding: 16px;
+      padding: 12px;
+      padding-bottom: 80px; /* space for Telegram main button */
       box-sizing: border-box;
     }
 
-    h2 {
-      margin-top: 0;
-      text-align: center;
+    /* Search & Categories */
+    .search-box {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: var(--secondary-bg);
+      color: var(--text-color);
+      font-size: 14px;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+      outline: none;
     }
 
+    .categories {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+    .categories::-webkit-scrollbar { display: none; }
+
+    .cat-btn {
+      background: var(--secondary-bg);
+      border: none;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-color);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .cat-btn.active {
+      background: var(--button-color);
+      color: var(--button-text-color);
+    }
+
+    /* Product Grid */
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
     }
 
     .card {
       background: var(--secondary-bg);
       border-radius: 12px;
-      padding: 12px;
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     }
 
     .card img {
       width: 100%;
-      height: 120px;
+      height: 110px;
       object-fit: cover;
       border-radius: 8px;
     }
 
-    .card .title {
-      font-size: 14px;
+    .title {
+      font-size: 13px;
       font-weight: 600;
       margin: 8px 0 4px;
+      line-height: 1.3;
     }
 
-    .card .price {
+    .price {
       font-size: 14px;
       font-weight: bold;
       color: var(--button-color);
       margin-bottom: 8px;
     }
 
-    .btn {
+    /* Quantity Controls */
+    .action-row {
+      margin-top: auto;
+    }
+
+    .add-btn {
       background-color: var(--button-color);
       color: var(--button-text-color);
       border: none;
-      padding: 8px 12px;
-      border-radius: 6px;
+      padding: 8px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
       width: 100%;
+      font-size: 13px;
     }
 
-    .btn:active {
-      opacity: 0.8;
+    .qty-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0,0,0,0.05);
+      border-radius: 8px;
+      padding: 2px;
+    }
+
+    .qty-btn {
+      background: var(--button-color);
+      color: var(--button-text-color);
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .qty-num {
+      font-weight: bold;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
 
-  <h2>Featured Products</h2>
+  <!-- Search Input -->
+  <input type="text" id="search" class="search-box" placeholder="Search products..." oninput="filterProducts()">
+
+  <!-- Category Filter Tabs -->
+  <div class="categories" id="categories">
+    <button class="cat-btn active" onclick="setCategory('All', this)">All</button>
+    <button class="cat-btn" onclick="setCategory('Detergents', this)">Detergents</button>
+    <button class="cat-btn" onclick="setCategory('Cleaners', this)">Cleaners</button>
+    <button class="cat-btn" onclick="setCategory('Personal Care', this)">Personal Care</button>
+  </div>
+
+  <!-- Product Grid Container -->
   <div class="grid" id="product-list"></div>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
 
+    // Catalog Data
     const products = [
-      {
-        id: 1,
-        name: "Liquid Laundry Detergent 5L",
-        price: "15.00",
-        image: "https://via.placeholder.com/150/2481cc/ffffff?text=Detergent+5L"
-      },
-      {
-        id: 2,
-        name: "Alpine Fragrance Soap",
-        price: "4.50",
-        image: "https://via.placeholder.com/150/4caf50/ffffff?text=Alpine+Soap"
-      },
-      {
-        id: 3,
-        name: "Multi-Surface Cleaner 1L",
-        price: "8.00",
-        image: "https://via.placeholder.com/150/ff9800/ffffff?text=Cleaner+1L"
-      }
+      { id: 1, category: "Detergents", name: "Noble Laundry Detergent 5L", price: 15.00, image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?w=300" },
+      { id: 2, category: "Detergents", name: "Noble Liquid Detergent 1L", price: 4.50, image: "https://images.unsplash.com/photo-1585830810419-7ac6e280412c?w=300" },
+      { id: 3, category: "Cleaners", name: "Alpine Multi-Surface Cleaner 1L", price: 6.00, image: "https://images.unsplash.com/photo-1583947215259-38e31be8751f?w=300" },
+      { id: 4, category: "Cleaners", name: "Glass & Window Cleaner 500ml", price: 3.50, image: "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=300" },
+      { id: 5, category: "Personal Care", name: "Alpine Lavender Hand Soap 500ml", price: 3.00, image: "https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=300" },
+      { id: 6, category: "Personal Care", name: "Eucalyptus Body Wash 250ml", price: 5.50, image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=300" }
     ];
 
-    const container = document.getElementById("product-list");
+    let cart = {}; // Store added items: { productId: quantity }
+    let activeCategory = "All";
 
-    products.forEach(p => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <img src="${p.image}" alt="${p.name}">
-        <div class="title">${p.name}</div>
-        <div class="price">$${p.price}</div>
-        <button class="btn" onclick="addToCart('${p.name}', '${p.price}')">Select</button>
-      `;
-      container.appendChild(card);
-    });
+    function renderProducts() {
+      const container = document.getElementById("product-list");
+      const searchQuery = document.getElementById("search").value.toLowerCase();
+      container.innerHTML = "";
 
-    function addToCart(name, price) {
-      tg.MainButton.text = `Order ${name} ($${price})`;
-      tg.MainButton.show();
+      const filtered = products.filter(p => {
+        const matchesCategory = (activeCategory === "All" || p.category === activeCategory);
+        const matchesSearch = p.name.toLowerCase().includes(searchQuery);
+        return matchesCategory && matchesSearch;
+      });
 
-      tg.MainButton.onClick(() => {
-        tg.sendData(JSON.stringify({ name, price }));
-        tg.close();
+      filtered.forEach(p => {
+        const qty = cart[p.id] || 0;
+        const card = document.createElement("div");
+        card.className = "card";
+
+        let actionHTML = qty === 0 
+          ? `<button class="add-btn" onclick="updateCart(${p.id}, 1)">Add to Cart</button>`
+          : `<div class="qty-controls">
+              <button class="qty-btn" onclick="updateCart(${p.id}, -1)">-</button>
+              <span class="qty-num">${qty}</span>
+              <button class="qty-btn" onclick="updateCart(${p.id}, 1)">+</button>
+             </div>`;
+
+        card.innerHTML = `
+          <div>
+            <img src="${p.image}" alt="${p.name}">
+            <div class="title">${p.name}</div>
+          </div>
+          <div>
+            <div class="price">$${p.price.toFixed(2)}</div>
+            <div class="action-row">${actionHTML}</div>
+          </div>
+        `;
+        container.appendChild(card);
       });
     }
+
+    function updateCart(productId, change) {
+      const currentQty = cart[productId] || 0;
+      const newQty = currentQty + change;
+
+      if (newQty > 0) {
+        cart[productId] = newQty;
+      } else {
+        delete cart[productId];
+      }
+
+      renderProducts();
+      updateMainButton();
+    }
+
+    function updateMainButton() {
+      let totalItems = 0;
+      let totalPrice = 0;
+
+      for (let id in cart) {
+        const qty = cart[id];
+        const prod = products.find(p => p.id == id);
+        if (prod) {
+          totalItems += qty;
+          totalPrice += prod.price * qty;
+        }
+      }
+
+      if (totalItems > 0) {
+        tg.MainButton.setText(`VIEW CART (${totalItems}) • $${totalPrice.toFixed(2)}`);
+        tg.MainButton.show();
+      } else {
+        tg.MainButton.hide();
+      }
+    }
+
+    function setCategory(cat, element) {
+      activeCategory = cat;
+      document.querySelectorAll(".cat-btn").forEach(btn => btn.classList.remove("active"));
+      element.classList.add("active");
+      renderProducts();
+    }
+
+    function filterProducts() {
+      renderProducts();
+    }
+
+    // Handle Telegram Checkout action
+    tg.MainButton.onClick(() => {
+      const orderSummary = [];
+      let total = 0;
+
+      for (let id in cart) {
+        const prod = products.find(p => p.id == id);
+        const qty = cart[id];
+        const itemTotal = prod.price * qty;
+        total += itemTotal;
+        orderSummary.push({ name: prod.name, qty: qty, price: prod.price, subtotal: itemTotal });
+      }
+
+      // Send payload back to Telegram Bot
+      tg.sendData(JSON.stringify({
+        items: orderSummary,
+        totalAmount: total.toFixed(2)
+      }));
+      tg.close();
+    });
+
+    // Initial render
+    renderProducts();
   </script>
 </body>
 </html>
