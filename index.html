@@ -171,7 +171,7 @@
     .modal {
       background: var(--bg-color);
       width: 100%;
-      max-height: 80vh;
+      max-height: 85vh;
       border-radius: 16px 16px 0 0;
       padding: 20px;
       box-sizing: border-box;
@@ -182,26 +182,23 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
     .modal-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
       border-bottom: 1px solid var(--secondary-bg);
-    }
-
-    .modal-item-info {
-      flex: 1;
+      font-size: 13px;
     }
 
     .modal-controls {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .delete-btn {
@@ -209,9 +206,44 @@
       color: #fff;
       border: none;
       border-radius: 6px;
-      padding: 4px 8px;
+      padding: 3px 6px;
       cursor: pointer;
+      font-size: 11px;
+    }
+
+    /* Form Fields for Checkout */
+    .form-group {
+      margin-top: 12px;
+    }
+
+    .form-label {
       font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: var(--secondary-bg);
+      color: var(--text-color);
+      font-size: 14px;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    /* Payment Instruction Box */
+    .payment-instruction {
+      background: rgba(0, 136, 204, 0.1);
+      border-left: 4px solid var(--button-color);
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-top: 10px;
+      line-height: 1.4;
     }
 
     .confirm-btn {
@@ -246,20 +278,41 @@
     VIEW CART (<span id="cart-count">0</span>) • $<span id="cart-total">0.00</span>
   </div>
 
-  <!-- Editable Cart Modal Overlay -->
+  <!-- Cart & Checkout Modal Overlay -->
   <div id="modal-overlay" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">
-        <h3 style="margin:0;">Order Summary</h3>
+        <h3 style="margin:0;">Checkout & Payment</h3>
         <button onclick="closeCartModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">✕</button>
       </div>
+
       <div id="cart-items-list"></div>
-      <hr style="border: none; border-top: 1px solid #ddd; margin: 12px 0;">
-      <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
-        <span>Total:</span>
+
+      <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:15px; margin: 10px 0;">
+        <span>Total Amount:</span>
         <span>$<span id="modal-total">0.00</span></span>
       </div>
-      <button class="confirm-btn" id="submit-btn" onclick="submitOrder()">Submit Order</button>
+
+      <!-- Customer Info & Payment Method Section -->
+      <div class="form-group">
+        <label class="form-label">Your Name / Phone</label>
+        <input type="text" id="customer-info" class="form-input" placeholder="e.g. John (+251...)">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Select Payment Method</label>
+        <select id="payment-method" class="form-select" onchange="updatePaymentInstructions()">
+          <option value="Telebirr">Telebirr</option>
+          <option value="Bank Transfer">Bank Transfer (Commercial Bank / Awash)</option>
+          <option value="M-Pesa">M-Pesa</option>
+        </select>
+      </div>
+
+      <div id="payment-details-box" class="payment-instruction">
+        <!-- Dynamic instructions populate here -->
+      </div>
+
+      <button class="confirm-btn" id="submit-btn" onclick="submitOrder()">Confirm & Place Order</button>
     </div>
   </div>
 
@@ -331,7 +384,6 @@
       renderProducts();
       updateCartBar();
       
-      // If modal is currently open, dynamically update it too
       if (document.getElementById("modal-overlay").style.display === "flex") {
         openCartModal();
       }
@@ -384,9 +436,9 @@
         const itemRow = document.createElement("div");
         itemRow.className = "modal-item";
         itemRow.innerHTML = `
-          <div class="modal-item-info">
-            <div><strong>${prod.name}</strong></div>
-            <div style="font-size:12px; color:#666;">$${prod.price.toFixed(2)} x ${qty} = $${subtotal.toFixed(2)}</div>
+          <div>
+            <strong>${prod.name}</strong> x${qty}<br>
+            <span style="color:#666;">$${subtotal.toFixed(2)}</span>
           </div>
           <div class="modal-controls">
             <button class="qty-btn" onclick="updateCart(${prod.id}, -1)">-</button>
@@ -404,7 +456,21 @@
       }
 
       document.getElementById("modal-total").innerText = total.toFixed(2);
+      updatePaymentInstructions();
       document.getElementById("modal-overlay").style.display = "flex";
+    }
+
+    function updatePaymentInstructions() {
+      const method = document.getElementById("payment-method").value;
+      const box = document.getElementById("payment-details-box");
+
+      if (method === "Telebirr") {
+        box.innerHTML = `📱 <b>Telebirr Payment:</b> Transfer total amount to <b>+251 9XXXXXXXX</b> (Noble Store). Send screenshot receipt after ordering.`;
+      } else if (method === "Bank Transfer") {
+        box.innerHTML = `🏦 <b>Bank Transfer:</b> Commercial Bank of Ethiopia (CBE) - <b>1000XXXXXXXXX</b> (Nahusenay K.).`;
+      } else if (method === "M-Pesa") {
+        box.innerHTML = `💸 <b>M-Pesa Payment:</b> Send money to Safaricom M-Pesa account <b>+251 7XXXXXXXX</b>.`;
+      }
     }
 
     function closeCartModal() {
@@ -412,6 +478,14 @@
     }
 
     function submitOrder() {
+      const customerInfo = document.getElementById("customer-info").value.trim();
+      const paymentMethod = document.getElementById("payment-method").value;
+
+      if (!customerInfo) {
+        alert("Please enter your name or phone number for delivery.");
+        return;
+      }
+
       const orderSummary = [];
       let total = 0;
 
@@ -425,25 +499,28 @@
 
       if (orderSummary.length === 0) return;
 
-      const payload = JSON.stringify({ items: orderSummary, totalAmount: total.toFixed(2) });
+      const payload = JSON.stringify({
+        customer: customerInfo,
+        payment: paymentMethod,
+        items: orderSummary,
+        totalAmount: total.toFixed(2)
+      });
 
-      // Visual feedback on button tap
       const btn = document.getElementById("submit-btn");
-      btn.innerText = "Submitting...";
+      btn.innerText = "Processing...";
       btn.disabled = true;
 
       setTimeout(() => {
         try {
-          tg.sendData(payload); // Send JSON order data to Telegram Bot
+          tg.sendData(payload);
         } catch (e) {
-          console.log("sendData error:", e);
+          console.log(e);
         }
 
-        // Native Alert Confirmation
-        tg.showAlert("✅ Order Submitted Successfully!\nTotal: $" + total.toFixed(2), () => {
+        tg.showAlert(`✅ Order Placed via ${paymentMethod}!\nTotal: $${total.toFixed(2)}\nPlease send your transfer receipt to the chat.`, () => {
           tg.close();
         });
-      }, 300);
+      }, 400);
     }
 
     function setCategory(cat, element) {
