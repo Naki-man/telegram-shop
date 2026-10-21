@@ -12,7 +12,6 @@
       --button-color: var(--tg-theme-button-color, #0088cc);
       --button-text-color: var(--tg-theme-button-text-color, #ffffff);
       --secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
-      --hint-color: var(--tg-theme-hint-color, #888888);
     }
 
     body {
@@ -21,7 +20,7 @@
       color: var(--text-color);
       margin: 0;
       padding: 12px;
-      padding-bottom: 80px; /* space for Telegram main button */
+      padding-bottom: 90px;
       box-sizing: border-box;
     }
 
@@ -66,7 +65,7 @@
       color: var(--button-text-color);
     }
 
-    /* Product Grid */
+    /* Grid Layout */
     .grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -94,7 +93,6 @@
       font-size: 13px;
       font-weight: 600;
       margin: 8px 0 4px;
-      line-height: 1.3;
     }
 
     .price {
@@ -102,11 +100,6 @@
       font-weight: bold;
       color: var(--button-color);
       margin-bottom: 8px;
-    }
-
-    /* Quantity Controls */
-    .action-row {
-      margin-top: auto;
     }
 
     .add-btn {
@@ -146,14 +139,78 @@
       font-weight: bold;
       font-size: 14px;
     }
+
+    /* Fixed Bottom View Cart Bar */
+    .floating-cart {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      background-color: var(--button-color);
+      color: var(--button-text-color);
+      padding: 14px;
+      border-radius: 12px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Cart Modal Popup */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      align-items: flex-end;
+    }
+
+    .modal {
+      background: var(--bg-color);
+      width: 100%;
+      max-height: 80vh;
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--secondary-bg);
+    }
+
+    .confirm-btn {
+      background-color: var(--button-color);
+      color: var(--button-text-color);
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Search Input -->
   <input type="text" id="search" class="search-box" placeholder="Search products..." oninput="filterProducts()">
 
-  <!-- Category Filter Tabs -->
   <div class="categories" id="categories">
     <button class="cat-btn active" onclick="setCategory('All', this)">All</button>
     <button class="cat-btn" onclick="setCategory('Detergents', this)">Detergents</button>
@@ -161,17 +218,35 @@
     <button class="cat-btn" onclick="setCategory('Personal Care', this)">Personal Care</button>
   </div>
 
-  <!-- Product Grid Container -->
   <div class="grid" id="product-list"></div>
 
- 
-    function updateCart(productId, change) {
-        <script>
+  <!-- In-App View Cart Floating Button -->
+  <div id="floating-cart" class="floating-cart" onclick="openCartModal()">
+    VIEW CART (<span id="cart-count">0</span>) • $<span id="cart-total">0.00</span>
+  </div>
+
+  <!-- Cart Summary Modal -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 style="margin:0;">Order Summary</h3>
+        <button onclick="closeCartModal()" style="border:none; background:none; font-size:20px; cursor:pointer;">✕</button>
+      </div>
+      <div id="cart-items-list"></div>
+      <hr style="border: none; border-top: 1px solid #ddd; margin: 12px 0;">
+      <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:16px;">
+        <span>Total:</span>
+        <span>$<span id="modal-total">0.00</span></span>
+      </div>
+      <button class="confirm-btn" onclick="submitOrder()">Submit Order</button>
+    </div>
+  </div>
+
+  <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
-    tg.ready(); // Signals to Telegram that the Mini App is fully loaded
+    tg.ready();
 
-    // Catalog Data
     const products = [
       { id: 1, category: "Detergents", name: "Noble Laundry Detergent 5L", price: 15.00, image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?w=300" },
       { id: 2, category: "Detergents", name: "Noble Liquid Detergent 1L", price: 4.50, image: "https://images.unsplash.com/photo-1585830810419-7ac6e280412c?w=300" },
@@ -215,7 +290,7 @@
           </div>
           <div>
             <div class="price">$${p.price.toFixed(2)}</div>
-            <div class="action-row">${actionHTML}</div>
+            <div>${actionHTML}</div>
           </div>
         `;
         container.appendChild(card);
@@ -233,36 +308,10 @@
       }
 
       renderProducts();
-      updateMainButton();
+      updateCartBar();
     }
 
-    // Function to handle checkout click
-    function onCheckoutClick() {
-      const orderSummary = [];
-      let total = 0;
-
-      for (let id in cart) {
-        const prod = products.find(p => p.id == id);
-        const qty = cart[id];
-        const itemTotal = prod.price * qty;
-        total += itemTotal;
-        orderSummary.push({ name: prod.name, qty: qty, price: prod.price, subtotal: itemTotal });
-      }
-
-      const payload = JSON.stringify({
-        items: orderSummary,
-        totalAmount: total.toFixed(2)
-      });
-
-      try {
-        tg.sendData(payload); // Send data to bot
-      } catch (e) {
-        tg.showAlert("Order placed! Total: $" + total.toFixed(2));
-      }
-      tg.close();
-    }
-
-    function updateMainButton() {
+    function updateCartBar() {
       let totalItems = 0;
       let totalPrice = 0;
 
@@ -275,16 +324,68 @@
         }
       }
 
+      const floatBar = document.getElementById("floating-cart");
       if (totalItems > 0) {
-        tg.MainButton.setText(`VIEW CART (${totalItems}) • $${totalPrice.toFixed(2)}`);
-        tg.MainButton.show();
-        
-        // Remove previous listener and bind fresh event
-        tg.MainButton.offClick(onCheckoutClick);
-        tg.MainButton.onClick(onCheckoutClick);
+        document.getElementById("cart-count").innerText = totalItems;
+        document.getElementById("cart-total").innerText = totalPrice.toFixed(2);
+        floatBar.style.display = "block";
       } else {
-        tg.MainButton.hide();
+        floatBar.style.display = "none";
       }
+    }
+
+    function openCartModal() {
+      const listContainer = document.getElementById("cart-items-list");
+      listContainer.innerHTML = "";
+      let total = 0;
+
+      for (let id in cart) {
+        const prod = products.find(p => p.id == id);
+        const qty = cart[id];
+        const subtotal = prod.price * qty;
+        total += subtotal;
+
+        const itemRow = document.createElement("div");
+        itemRow.className = "modal-item";
+        itemRow.innerHTML = `
+          <div><strong>${prod.name}</strong> x${qty}</div>
+          <div>$${subtotal.toFixed(2)}</div>
+        `;
+        listContainer.appendChild(itemRow);
+      }
+
+      document.getElementById("modal-total").innerText = total.toFixed(2);
+      document.getElementById("modal-overlay").style.display = "flex";
+    }
+
+    function closeCartModal() {
+      document.getElementById("modal-overlay").style.display = "none";
+    }
+
+    function submitOrder() {
+      const orderSummary = [];
+      let total = 0;
+
+      for (let id in cart) {
+        const prod = products.find(p => p.id == id);
+        const qty = cart[id];
+        const subtotal = prod.price * qty;
+        total += subtotal;
+        orderSummary.push({ name: prod.name, qty: qty, price: prod.price, subtotal: subtotal });
+      }
+
+      const payload = JSON.stringify({ items: orderSummary, totalAmount: total.toFixed(2) });
+
+      if (tg.sendData) {
+        try {
+          tg.sendData(payload);
+        } catch(e) {
+          alert("Order Placed Successfully! Total: $" + total.toFixed(2));
+        }
+      } else {
+        alert("Order Placed Successfully! Total: $" + total.toFixed(2));
+      }
+      tg.close();
     }
 
     function setCategory(cat, element) {
@@ -298,9 +399,7 @@
       renderProducts();
     }
 
-    // Initial render
     renderProducts();
   </script>
-
 </body>
 </html>
